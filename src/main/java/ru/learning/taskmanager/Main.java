@@ -1,29 +1,25 @@
 package ru.learning.taskmanager;
 
-import ru.learning.taskmanager.model.Priority;
-import ru.learning.taskmanager.model.Task;
+import ru.learning.taskmanager.console.ConsoleInput;
+import ru.learning.taskmanager.console.ConsoleMenu;
 import ru.learning.taskmanager.repository.InMemoryTaskRepository;
 import ru.learning.taskmanager.repository.TaskRepository;
+import ru.learning.taskmanager.service.TaskService;
 
 import java.util.Optional;
+import java.util.Scanner;
 
 public class Main {
 
-    public static void main(String[] args) {
-        TaskRepository tasks = new InMemoryTaskRepository();
+    public static void main(String[] args){
+        TaskRepository repository = new InMemoryTaskRepository();
+        TaskService service = new TaskService(repository);
 
-        Task firstTask = new Task(
-                1,
-                "Изучить коллекции",
-                Priority.HIGH
-        );
+        try(Scanner scanner = new Scanner(System.in)){
+            ConsoleInput input = new ConsoleInput(scanner);
+            ConsoleMenu menu = new ConsoleMenu(service, input);
 
-        Task secondTask = new Task(
-                2,
-                "Повторить исключения",
-                Priority.MEDIUM
-        );
-
-        System.out.println("Система управления задачами запущена!");
+            menu.run();
+        }
     }
 }
