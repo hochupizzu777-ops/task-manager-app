@@ -1,7 +1,7 @@
 package ru.learning.taskmanager.model;
 
 public enum Priority {
-    Low,
+    LOW,
     MEDIUM,
     HIGH
 }
