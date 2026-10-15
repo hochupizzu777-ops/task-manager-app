@@ -36,9 +36,12 @@ public class ConsoleMenu {
             System.out.println("5. Изменить статус");
             System.out.println("6. Изменить приоритет");
             System.out.println("7. Удалить задачу");
+            System.out.println("8. Поиск по названию");
+            System.out.println("9. Фильтр по статусу");
+            System.out.println("10. Сортировка по приоритету");
             System.out.println("0. Выйти");
 
-            int choice = input.readInt("Ваш выбор", 0, 7);
+            int choice = input.readInt("Ваш выбор", 0, 10);
 
             try{
                 switch (choice){
@@ -49,6 +52,9 @@ public class ConsoleMenu {
                     case 5 -> changeTaskStatus();
                     case 6 -> changeTaskPriority();
                     case 7 -> deleteTask();
+                    case 8 -> searchTasksByTitle();
+                    case 9 -> filterTasksByStatus();
+                    case 10 -> showTasksSortedByPriority();
                     case 0 -> {
                         System.out.println("Программа завершена");
                         return;
@@ -94,14 +100,14 @@ public class ConsoleMenu {
     }
 
     private void showAllTasks(){
-        List<Task> tasks = service.getAllTask();
+        showTasks(service.getAllTask());
+    }
 
+    private void showTasks(List<Task> tasks){
         if (tasks.isEmpty()){
-            System.out.println("Задач пока нет");
+            System.out.println("Список задач пустой");
             return;
         }
-
-        System.out.println("Ваши задачи:");
 
         for (Task task : tasks){
             printTask(task);
@@ -196,5 +202,29 @@ public class ConsoleMenu {
                     "Неизвестный статус"
             );
         };
+    }
+
+    private void searchTasksByTitle(){
+        String query = input.readRequiredLine(
+                "Введите часть названия: "
+        );
+
+        List<Task> tasks = service.getTaskByTitle(query);
+
+        showTasks(tasks);
+    }
+
+    private void filterTasksByStatus(){
+        TaskStatus status = readStatus();
+
+        List<Task> tasks = service.getTasksByStatus(status);
+
+        showTasks(tasks);
+    }
+
+    private void showTasksSortedByPriority(){
+        List<Task> tasks = service.getTaskByPriority();
+
+        showTasks(tasks);
     }
 }

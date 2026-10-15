@@ -9,6 +9,8 @@ import ru.learning.taskmanager.repository.TaskRepository;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Comparator;
+import java.util.Locale;
 
 public class TaskService {
 
@@ -82,5 +84,45 @@ public class TaskService {
                     id
             );
         }
+    }
+
+    public List<Task> getTaskByTitle(String query){
+        if (query == null || query.isBlank()){
+            throw new IllegalArgumentException(
+                    "Нельзя найти задачи через null или пустоту"
+            );
+        }
+
+        String normalizedQuery = query.strip()
+                .toLowerCase(Locale.ROOT);
+
+        return repository.findAll().stream()
+                .filter(task ->
+                        task.getTitle()
+                        .strip()
+                        .toLowerCase(Locale.ROOT)
+                        .contains(normalizedQuery))
+                .sorted(Comparator.comparingLong(Task::getId))
+                .toList();
+    }
+
+    public List<Task> getTasksByStatus(TaskStatus status) {
+        Objects.requireNonNull(
+                status,
+                "Статус не должен быть null"
+        );
+
+        return repository.findAll().stream()
+                .filter(task -> task.getStatus() == status)
+                .sorted(Comparator.comparingLong(Task::getId))
+                .toList();
+    }
+
+    public List<Task> getTaskByPriority(){
+        return repository.findAll().stream()
+                .sorted(Comparator.comparing(Task::getPriority)
+                        .reversed()
+                        .thenComparing(Task::getId))
+                .toList();
     }
 }
