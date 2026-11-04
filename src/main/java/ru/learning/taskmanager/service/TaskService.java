@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Comparator;
 import java.util.Locale;
+import java.time.LocalDate;
 
 public class TaskService {
 
@@ -122,6 +123,24 @@ public class TaskService {
         return repository.findAll().stream()
                 .sorted(Comparator.comparing(Task::getPriority)
                         .reversed()
+                        .thenComparing(Task::getId))
+                .toList();
+    }
+
+    public void changeTaskDueDate(long id, LocalDate dueDate){
+        Task task = getTask(id);
+
+        task.changeDueDate(dueDate);
+
+        repository.save(task);
+    }
+
+    public List<Task> getOverdueTask(){
+        LocalDate today = LocalDate.now();
+
+        return repository.findAll().stream()
+                .filter(task -> task.isOverdue(today))
+                .sorted(Comparator.comparing(Task::getDueDate)
                         .thenComparing(Task::getId))
                 .toList();
     }

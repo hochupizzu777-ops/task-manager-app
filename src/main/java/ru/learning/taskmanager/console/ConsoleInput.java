@@ -1,7 +1,10 @@
 package ru.learning.taskmanager.console;
 
+import java.time.LocalDateTime;
 import java.util.Objects;
 import java.util.Scanner;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 
 public class ConsoleInput {
 
@@ -69,6 +72,25 @@ public class ConsoleInput {
             }catch (NumberFormatException exception){
                 System.out.println(
                         "Введите целое число в пределах диапазона long"
+                );
+            }
+        }
+    }
+    public LocalDate readOptionalDate(String prompt){
+        while(true){
+            System.out.print(prompt);
+
+            String value = scanner.nextLine().strip();
+
+            if (value.isEmpty()){
+                return null;
+            }
+
+            try{
+                return LocalDate.parse(value);
+            } catch (DateTimeParseException exception){
+                System.out.println(
+                        "Введите существующую дату в формате ГГГГ-ММ-ДД."
                 );
             }
         }
