@@ -6,6 +6,12 @@ import ru.learning.taskmanager.service.TaskService;
 import ru.learning.taskmanager.exception.TaskNotFoundException;
 import ru.learning.taskmanager.model.TaskStatus;
 import java.time.LocalDate;
+import ru.learning.taskmanager.exception.UserNotFoundException;
+import ru.learning.taskmanager.model.User;
+import ru.learning.taskmanager.service.UserService;
+import ru.learning.taskmanager.service.TaskAssignmentService;
+
+import java.util.Comparator;
 
 import java.util.List;
 import java.util.Objects;
@@ -14,15 +20,29 @@ public class ConsoleMenu {
 
     private final TaskService service;
     private final ConsoleInput input;
+    private final UserService userService;
+    private final TaskAssignmentService assignmentService;
 
-    public ConsoleMenu(TaskService service, ConsoleInput input){
+    public ConsoleMenu(TaskService service,
+                       ConsoleInput input,
+                       UserService userService,
+                       TaskAssignmentService assignmentService
+    ){
         this.service = Objects.requireNonNull(
                 service,
-                "Сервис не может быть null"
+                "Сервис задач не может быть null"
         );
         this.input = Objects.requireNonNull(
                 input,
                 "Ввод не может быть null"
+        );
+        this.userService = Objects.requireNonNull(
+                userService,
+                "Сервис пользователей не должен быть null"
+        );
+        this.assignmentService = Objects.requireNonNull(
+                assignmentService,
+                "Сервис назначений не должен быть null"
         );
     }
 
@@ -42,9 +62,13 @@ public class ConsoleMenu {
             System.out.println("10. Сортировка по приоритету");
             System.out.println("11. Назначить или убрать срок");
             System.out.println("12. Показать просроченные задачи");
+            System.out.println("13. Пользователи");
+            System.out.println("14. Назначить исполнителя");
+            System.out.println("15. Снять исполнителя");
+            System.out.println("16. Показать задачи пользователя");
             System.out.println("0. Выйти");
 
-            int choice = input.readInt("Ваш выбор", 0, 12);
+            int choice = input.readInt("Ваш выбор", 0, 16);
 
             try{
                 switch (choice){
@@ -60,12 +84,19 @@ public class ConsoleMenu {
                     case 10 -> showTasksSortedByPriority();
                     case 11 -> changeTaskDueDate();
                     case 12 -> showOverdueTasks();
+                    case 13 -> runUsersMenu();
+                    case 14 -> assignTask();
+                    case 15 -> unassignTask();
+                    case 16 -> showUserTasks();
                     case 0 -> {
                         System.out.println("Программа завершена");
                         return;
                     }
                 }
-            }catch (TaskNotFoundException | IllegalArgumentException exception){
+            }catch (TaskNotFoundException
+                    | UserNotFoundException
+                    | IllegalStateException
+                    | IllegalArgumentException exception){
                 System.out.println("Ошибка: " + exception.getMessage());
             }
         }
@@ -193,6 +224,7 @@ public class ConsoleMenu {
                         + " | Статус: " + status
                         + " | Приоритет: " + priority
                         + " | Срок: " + dueDate
+                        + " | Исполнитель: " + getAssigneeText(task)
         );
     }
 
@@ -252,5 +284,133 @@ public class ConsoleMenu {
 
     private void showOverdueTasks(){
         showTasks(service.getOverdueTask());
+    }
+
+    private void runUsersMenu(){
+        while(true){
+            System.out.println();
+            System.out.println("=== Пользователи ===");
+            System.out.println("1. Создать пользователя");
+            System.out.println("2. Показать всех пользователей");
+            System.out.println("3. Переименовать пользователя");
+            System.out.println("4. Удалить пользователя");
+            System.out.println("0. Вернуться в главное меню");
+
+            int choice = input.readInt("Ваш выбор: ", 0, 4);
+
+            try{
+                switch (choice){
+                    case 1 -> createUser();
+                    case 2 -> showAllUser();
+                    case 3 -> renameUser();
+                    case 4 -> deleteUser();
+                    case 0 -> {
+                        return;
+                    }
+                }
+            } catch (IllegalStateException
+                | IllegalArgumentException
+                | UserNotFoundException exception
+            ) {
+                System.out.println("Ошибка: " + exception.getMessage());
+            }
+        }
+    }
+
+    private long readUserId(){
+        long id = input.readPositiveLong(
+                "Введи id исполнителя"
+        );
+        return id;
+    }
+
+    private void createUser(){
+        String name = input.readRequiredLine(
+                "Введите имя нового исполнителя"
+        );
+
+        User user = userService.createUser(name);
+
+        System.out.println(
+                "Создан пользователь №" + user.getId()
+                        + ": " + user.getName()
+        );
+    }
+    private void showAllUser(){
+        List<User> users = userService.getAllUsers();
+
+        if (users.isEmpty()) {
+            System.out.println("Пользователей пока нет.");
+            return;
+        }
+
+        for(User user : users
+                .stream()
+                .sorted(Comparator.comparingLong(User::getId))
+                .toList()){
+            System.out.println(user);
+        }
+    }
+
+    private void renameUser(){
+        long id = readUserId();
+
+        String newName = input.readRequiredLine(
+                "Введите новое имя для исполнителя"
+        );
+
+        userService.renameUser(id, newName);
+
+        System.out.println("Имя пользователя изменено.");
+    }
+
+    private void deleteUser(){
+        long id = readUserId();
+
+        userService.deleteUser(id);
+
+        System.out.println("Пользователь удалён.");
+    }
+
+    private void assignTask(){
+        if (userService.getAllUsers().isEmpty()){
+            System.out.println("Сначала создайте исполнителей");
+            return;
+        }
+
+        long userId = readUserId();
+        long taskId = readTaskId();
+
+        assignmentService.assignTask(userId, taskId);
+
+        System.out.println("Исполнитель назначен.");
+    }
+
+    private void unassignTask(){
+        long id = readTaskId();
+
+        assignmentService.unassignTask(id);
+
+        System.out.println("Назначение снято.");
+    }
+
+    private void showUserTasks(){
+        long id = readUserId();
+
+        List<Task> tasks = assignmentService.getTasksByUser(id);
+
+        showTasks(tasks);
+    }
+
+    private String getAssigneeText(Task task) {
+        Long assigneeId = task.getAssigneeId();
+
+        if (assigneeId == null) {
+            return "не назначен";
+        }
+
+        User user = userService.getUser(assigneeId);
+
+        return user.getName() + " (№" + user.getId() + ")";
     }
 }

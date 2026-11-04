@@ -11,6 +11,8 @@ import ru.learning.taskmanager.repository.UserRepository;
 import ru.learning.taskmanager.service.TaskService;
 import ru.learning.taskmanager.storage.ApplicationData;
 import ru.learning.taskmanager.storage.TaskFileStorage;
+import ru.learning.taskmanager.service.UserService;
+import ru.learning.taskmanager.service.TaskAssignmentService;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -29,37 +31,30 @@ public class Main {
         UserRepository userRepository =
                 new InMemoryUserRepository();
 
-        try {
-            ApplicationData data = storage.load();
+        TaskService service = new TaskService(taskRepository);
 
-            for (User user : data.users()) {
-                userRepository.save(user);
-            }
+        UserService userService = new UserService(
+                userRepository,
+                taskRepository
+        );
 
-            for (Task task : data.tasks()) {
-                taskRepository.save(task);
-            }
+        TaskAssignmentService assignmentService =
+                new TaskAssignmentService(
+                        taskRepository,
+                        userRepository
+                );
 
-            TaskService service = new TaskService(taskRepository);
+        try (Scanner scanner = new Scanner(System.in)) {
+            ConsoleInput input = new ConsoleInput(scanner);
 
-            try (Scanner scanner = new Scanner(System.in)) {
-                ConsoleInput input = new ConsoleInput(scanner);
-                ConsoleMenu menu = new ConsoleMenu(service, input);
-
-                menu.run();
-            }
-
-            storage.save(
-                    taskRepository.findAll(),
-                    userRepository.findAll()
+            ConsoleMenu menu = new ConsoleMenu(
+                    service,
+                    input,
+                    userService,
+                    assignmentService
             );
 
-            System.out.println("Данные сохранены.");
-        } catch (IOException exception) {
-            System.out.println(
-                    "Ошибка работы с файлом: "
-                            + exception.getMessage()
-            );
+            menu.run();
         }
     }
 }
