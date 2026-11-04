@@ -10,6 +10,7 @@ public class Task {
     private TaskStatus status;
     private Priority priority;
     private LocalDate dueDate;
+    private Long assigneeId;
 
     public Task(
             long id,
@@ -58,6 +59,10 @@ public class Task {
         return dueDate;
     }
 
+    public Long getAssigneeId(){
+        return assigneeId;
+    }
+
     public void rename(String newTitle) {
         if (newTitle == null || newTitle.isBlank()) {
             throw new IllegalArgumentException(
@@ -94,6 +99,20 @@ public class Task {
         return dueDate != null
                 && status != TaskStatus.DONE
                 && dueDate.isBefore(today);
+    }
+
+    public void assignTo(long userId){
+        if (id <= 0){
+            throw new IllegalArgumentException(
+                    "Идентификатор исполнителя должен быть положительным"
+            );
+        }
+
+        this.assigneeId = userId;
+    }
+
+    public void unassign(){
+        this.assigneeId = null;
     }
 
     @Override

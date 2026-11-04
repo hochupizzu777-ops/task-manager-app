@@ -3,15 +3,17 @@ package ru.learning.taskmanager;
 import ru.learning.taskmanager.console.ConsoleInput;
 import ru.learning.taskmanager.console.ConsoleMenu;
 import ru.learning.taskmanager.model.Task;
+import ru.learning.taskmanager.model.User;
 import ru.learning.taskmanager.repository.InMemoryTaskRepository;
+import ru.learning.taskmanager.repository.InMemoryUserRepository;
 import ru.learning.taskmanager.repository.TaskRepository;
+import ru.learning.taskmanager.repository.UserRepository;
 import ru.learning.taskmanager.service.TaskService;
+import ru.learning.taskmanager.storage.ApplicationData;
 import ru.learning.taskmanager.storage.TaskFileStorage;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.List;
-import java.util.Optional;
 import java.util.Scanner;
 
 public class Main {
@@ -21,16 +23,24 @@ public class Main {
                 Path.of("data", "tasks.properties")
         );
 
-        TaskRepository repository = new InMemoryTaskRepository();
+        TaskRepository taskRepository =
+                new InMemoryTaskRepository();
+
+        UserRepository userRepository =
+                new InMemoryUserRepository();
 
         try {
-            List<Task> loadedTasks = storage.load();
+            ApplicationData data = storage.load();
 
-            for (Task task : loadedTasks) {
-                repository.save(task);
+            for (User user : data.users()) {
+                userRepository.save(user);
             }
 
-            TaskService service = new TaskService(repository);
+            for (Task task : data.tasks()) {
+                taskRepository.save(task);
+            }
+
+            TaskService service = new TaskService(taskRepository);
 
             try (Scanner scanner = new Scanner(System.in)) {
                 ConsoleInput input = new ConsoleInput(scanner);
@@ -39,9 +49,12 @@ public class Main {
                 menu.run();
             }
 
-            storage.save(repository.findAll());
+            storage.save(
+                    taskRepository.findAll(),
+                    userRepository.findAll()
+            );
 
-            System.out.println("Задачи сохранены.");
+            System.out.println("Данные сохранены.");
         } catch (IOException exception) {
             System.out.println(
                     "Ошибка работы с файлом: "
