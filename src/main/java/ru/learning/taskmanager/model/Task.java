@@ -93,7 +93,7 @@ public class Task {
 
         return dueDate != null
                 && status != TaskStatus.DONE
-                && dueDate.isAfter(today);
+                && dueDate.isBefore(today);
     }
 
     @Override
