@@ -43,7 +43,7 @@ public class InMemoryTaskRepository  implements TaskRepository{
         return tasks.remove(id) != null;
     }
 
-    public void validateId(long id){
+    private void validateId(long id){
         if (id <= 0){
             throw new IllegalArgumentException(
                     "Id не может быть отрицательным или равным нулю"

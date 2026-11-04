@@ -5,7 +5,9 @@ import org.junit.jupiter.api.io.TempDir;
 import ru.learning.taskmanager.model.Priority;
 import ru.learning.taskmanager.model.Task;
 import ru.learning.taskmanager.model.TaskStatus;
+import ru.learning.taskmanager.storage.ApplicationData;
 import ru.learning.taskmanager.storage.TaskFileStorage;
+import ru.learning.taskmanager.model.User;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -24,7 +26,7 @@ public class TaskFileStorageTest {
         Path file = directory.resolve("missing.properties");
         TaskFileStorage storage = new TaskFileStorage(file);
 
-        List<Task> tasks = storage.load();
+        List<Task> tasks = storage.load().tasks();
 
         assertTrue(tasks.isEmpty());
     }
@@ -41,10 +43,10 @@ public class TaskFileStorageTest {
         task.changeDueDate(LocalDate.of(2026, 12, 10));
 
         TaskFileStorage storage = new TaskFileStorage(file);
-        storage.save(List.of(task));
+        storage.save(List.of(task), List.of());
 
         TaskFileStorage anotherStorage = new TaskFileStorage(file);
-        List<Task> loadedTasks = anotherStorage.load();
+        List<Task> loadedTasks = anotherStorage.load().tasks();
 
         assertEquals(1, loadedTasks.size());
 
@@ -76,15 +78,50 @@ public class TaskFileStorageTest {
         TaskFileStorage storage = new TaskFileStorage(file);
 
         Task firstTask = new Task(1, "Первая задача", Priority.LOW);
-        storage.save(List.of(firstTask));
+        storage.save(List.of(firstTask), List.of());
 
         Task secondTask = new Task(2, "Вторая задача", Priority.HIGH);
-        storage.save(List.of(secondTask));
+        storage.save(List.of(secondTask), List.of());
 
-        List<Task> loadedTasks = storage.load();
+        List<Task> loadedTasks = storage.load().tasks();
 
         assertEquals(1, loadedTasks.size());
         assertEquals(2L, loadedTasks.get(0).getId());
         assertEquals("Вторая задача", loadedTasks.get(0).getTitle());
+    }
+
+    @Test
+    void shouldRestoreUsersAndAssignments() throws IOException {
+        Path file = directory.resolve("tasks.properties");
+
+        User user = new User(5, "Анна");
+
+        Task task = new Task(7, "Изучить Java", Priority.HIGH);
+        task.assignTo(user.getId());
+
+        TaskFileStorage storage = new TaskFileStorage(file);
+
+        storage.save(
+                List.of(task),
+                List.of(user)
+        );
+
+        ApplicationData loaded =
+                new TaskFileStorage(file).load();
+
+        assertEquals(1, loaded.users().size());
+        assertEquals(1, loaded.tasks().size());
+
+        assertAll(
+                () -> assertEquals(5L, loaded.users().get(0).getId()),
+                () -> assertEquals(
+                        "Анна",
+                        loaded.users().get(0).getName()
+                ),
+                () -> assertEquals(
+                        Long.valueOf(5),
+                        loaded.tasks().get(0).getAssigneeId()
+                )
+        );
     }
 }

@@ -3,15 +3,19 @@ package ru.learning.taskmanager;
 import ru.learning.taskmanager.console.ConsoleInput;
 import ru.learning.taskmanager.console.ConsoleMenu;
 import ru.learning.taskmanager.model.Task;
+import ru.learning.taskmanager.model.User;
 import ru.learning.taskmanager.repository.InMemoryTaskRepository;
+import ru.learning.taskmanager.repository.InMemoryUserRepository;
 import ru.learning.taskmanager.repository.TaskRepository;
+import ru.learning.taskmanager.repository.UserRepository;
 import ru.learning.taskmanager.service.TaskService;
+import ru.learning.taskmanager.storage.ApplicationData;
 import ru.learning.taskmanager.storage.TaskFileStorage;
+import ru.learning.taskmanager.service.UserService;
+import ru.learning.taskmanager.service.TaskAssignmentService;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.List;
-import java.util.Optional;
 import java.util.Scanner;
 
 public class Main {
@@ -21,32 +25,36 @@ public class Main {
                 Path.of("data", "tasks.properties")
         );
 
-        TaskRepository repository = new InMemoryTaskRepository();
+        TaskRepository taskRepository =
+                new InMemoryTaskRepository();
 
-        try {
-            List<Task> loadedTasks = storage.load();
+        UserRepository userRepository =
+                new InMemoryUserRepository();
 
-            for (Task task : loadedTasks) {
-                repository.save(task);
-            }
+        TaskService service = new TaskService(taskRepository);
 
-            TaskService service = new TaskService(repository);
+        UserService userService = new UserService(
+                userRepository,
+                taskRepository
+        );
 
-            try (Scanner scanner = new Scanner(System.in)) {
-                ConsoleInput input = new ConsoleInput(scanner);
-                ConsoleMenu menu = new ConsoleMenu(service, input);
+        TaskAssignmentService assignmentService =
+                new TaskAssignmentService(
+                        taskRepository,
+                        userRepository
+                );
 
-                menu.run();
-            }
+        try (Scanner scanner = new Scanner(System.in)) {
+            ConsoleInput input = new ConsoleInput(scanner);
 
-            storage.save(repository.findAll());
-
-            System.out.println("Задачи сохранены.");
-        } catch (IOException exception) {
-            System.out.println(
-                    "Ошибка работы с файлом: "
-                            + exception.getMessage()
+            ConsoleMenu menu = new ConsoleMenu(
+                    service,
+                    input,
+                    userService,
+                    assignmentService
             );
+
+            menu.run();
         }
     }
 }
