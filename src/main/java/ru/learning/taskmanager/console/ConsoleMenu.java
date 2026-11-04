@@ -5,6 +5,7 @@ import ru.learning.taskmanager.model.Task;
 import ru.learning.taskmanager.service.TaskService;
 import ru.learning.taskmanager.exception.TaskNotFoundException;
 import ru.learning.taskmanager.model.TaskStatus;
+import java.time.LocalDate;
 
 import java.util.List;
 import java.util.Objects;
@@ -39,9 +40,11 @@ public class ConsoleMenu {
             System.out.println("8. Поиск по названию");
             System.out.println("9. Фильтр по статусу");
             System.out.println("10. Сортировка по приоритету");
+            System.out.println("11. Назначить или убрать срок");
+            System.out.println("12. Показать просроченные задачи");
             System.out.println("0. Выйти");
 
-            int choice = input.readInt("Ваш выбор", 0, 10);
+            int choice = input.readInt("Ваш выбор", 0, 12);
 
             try{
                 switch (choice){
@@ -55,6 +58,8 @@ public class ConsoleMenu {
                     case 8 -> searchTasksByTitle();
                     case 9 -> filterTasksByStatus();
                     case 10 -> showTasksSortedByPriority();
+                    case 11 -> changeTaskDueDate();
+                    case 12 -> showOverdueTasks();
                     case 0 -> {
                         System.out.println("Программа завершена");
                         return;
@@ -178,11 +183,16 @@ public class ConsoleMenu {
             case HIGH -> "Высокий";
         };
 
+        String dueDate = task.getDueDate() == null
+                ? "не задана"
+                : task.getDueDate().toString();
+
         System.out.println(
                 "№" + task.getId()
                         + " | " + task.getTitle()
                         + " | Статус: " + status
                         + " | Приоритет: " + priority
+                        + " | Срок: " + dueDate
         );
     }
 
@@ -226,5 +236,21 @@ public class ConsoleMenu {
         List<Task> tasks = service.getTaskByPriority();
 
         showTasks(tasks);
+    }
+
+    private void changeTaskDueDate(){
+        long id = readTaskId();
+
+        LocalDate dueDate = input.readOptionalDate(
+                "Срок ГГГГ-ММ-ДД (Enter — убрать срок): "
+        );
+
+        service.changeTaskDueDate(id, dueDate);
+
+        System.out.println("Срок задачи обновлён.");
+    }
+
+    private void showOverdueTasks(){
+        showTasks(service.getOverdueTask());
     }
 }

@@ -14,6 +14,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 
 public class TaskFileStorage {
 
@@ -62,6 +64,13 @@ public class TaskFileStorage {
                     prefix + "status",
                     task.getStatus().name()
             );
+
+            if (task.getDueDate() != null){
+                data.setProperty(
+                        prefix + "dueData",
+                        task.getDueDate().toString()
+                );
+            }
         }
 
         Path directory = file.getParent();
@@ -181,11 +190,17 @@ public class TaskFileStorage {
                         priority
                 );
                 task.changeStatus(status);
+
+                String dueDataText = data.getProperty(prefix + "dueData");
+                if (dueDataText != null){
+                    task.changeDueDate(LocalDate.parse(dueDataText));
+                }
+
                 tasks.add(task);
             }
 
             return tasks;
-        }catch (IllegalArgumentException exception){
+        }catch (IllegalArgumentException | DateTimeParseException exception){
             throw new IOException(
                     "некоректные данные задач" + exception.getMessage(),
                     exception

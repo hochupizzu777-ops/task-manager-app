@@ -1,6 +1,7 @@
 package ru.learning.taskmanager.model;
 
 import java.util.Objects;
+import java.time.LocalDate;
 
 public class Task {
 
@@ -8,6 +9,7 @@ public class Task {
     private String title;
     private TaskStatus status;
     private Priority priority;
+    private LocalDate dueDate;
 
     public Task(
             long id,
@@ -52,6 +54,10 @@ public class Task {
         return status;
     }
 
+    public LocalDate getDueDate(){
+        return dueDate;
+    }
+
     public void rename(String newTitle) {
         if (newTitle == null || newTitle.isBlank()) {
             throw new IllegalArgumentException(
@@ -74,6 +80,20 @@ public class Task {
                 status,
                 "Статус не должен быть null"
         );
+    }
+    public void changeDueDate(LocalDate dueDate){
+        this.dueDate = dueDate;
+    }
+
+    public boolean isOverdue(LocalDate today){
+        Objects.requireNonNull(
+                today,
+                "Текущая дата не может быть null"
+        );
+
+        return dueDate != null
+                && status != TaskStatus.DONE
+                && dueDate.isAfter(today);
     }
 
     @Override
