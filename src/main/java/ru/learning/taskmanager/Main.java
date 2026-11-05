@@ -4,15 +4,13 @@ import ru.learning.taskmanager.console.ConsoleInput;
 import ru.learning.taskmanager.console.ConsoleMenu;
 import ru.learning.taskmanager.model.Task;
 import ru.learning.taskmanager.model.User;
-import ru.learning.taskmanager.repository.InMemoryTaskRepository;
-import ru.learning.taskmanager.repository.InMemoryUserRepository;
-import ru.learning.taskmanager.repository.TaskRepository;
-import ru.learning.taskmanager.repository.UserRepository;
+import ru.learning.taskmanager.repository.*;
 import ru.learning.taskmanager.service.TaskService;
 import ru.learning.taskmanager.storage.ApplicationData;
 import ru.learning.taskmanager.storage.TaskFileStorage;
 import ru.learning.taskmanager.service.UserService;
 import ru.learning.taskmanager.service.TaskAssignmentService;
+import ru.learning.taskmanager.model.Project;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -24,6 +22,8 @@ public class Main {
         TaskFileStorage storage = new TaskFileStorage(
                 Path.of("data", "tasks.properties")
         );
+        ProjectRepository projectRepository =
+                new InMemoryProjectRepository();
 
         TaskRepository taskRepository =
                 new InMemoryTaskRepository();
@@ -35,13 +35,15 @@ public class Main {
 
         UserService userService = new UserService(
                 userRepository,
-                taskRepository
+                taskRepository,
+                projectRepository
         );
 
         TaskAssignmentService assignmentService =
                 new TaskAssignmentService(
                         taskRepository,
-                        userRepository
+                        userRepository,
+                        projectRepository
                 );
 
         try (Scanner scanner = new Scanner(System.in)) {

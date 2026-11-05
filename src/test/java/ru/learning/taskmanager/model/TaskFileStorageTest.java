@@ -8,7 +8,9 @@ import ru.learning.taskmanager.model.TaskStatus;
 import ru.learning.taskmanager.storage.ApplicationData;
 import ru.learning.taskmanager.storage.TaskFileStorage;
 import ru.learning.taskmanager.model.User;
+import ru.learning.taskmanager.model.Project;
 
+import java.util.Set;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.LocalDate;
@@ -43,7 +45,11 @@ public class TaskFileStorageTest {
         task.changeDueDate(LocalDate.of(2026, 12, 10));
 
         TaskFileStorage storage = new TaskFileStorage(file);
-        storage.save(List.of(task), List.of());
+        storage.save(
+                List.of(task),
+                List.of(),
+                List.of()
+        );
 
         TaskFileStorage anotherStorage = new TaskFileStorage(file);
         List<Task> loadedTasks = anotherStorage.load().tasks();
@@ -78,10 +84,18 @@ public class TaskFileStorageTest {
         TaskFileStorage storage = new TaskFileStorage(file);
 
         Task firstTask = new Task(1, "Первая задача", Priority.LOW);
-        storage.save(List.of(firstTask), List.of());
+        storage.save(
+                List.of(firstTask),
+                List.of(),
+                List.of()
+        );
 
         Task secondTask = new Task(2, "Вторая задача", Priority.HIGH);
-        storage.save(List.of(secondTask), List.of());
+        storage.save(
+                List.of(secondTask),
+                List.of(),
+                List.of()
+        );
 
         List<Task> loadedTasks = storage.load().tasks();
 
@@ -103,7 +117,8 @@ public class TaskFileStorageTest {
 
         storage.save(
                 List.of(task),
-                List.of(user)
+                List.of(user),
+                List.of()
         );
 
         ApplicationData loaded =
@@ -121,6 +136,76 @@ public class TaskFileStorageTest {
                 () -> assertEquals(
                         Long.valueOf(5),
                         loaded.tasks().get(0).getAssigneeId()
+                )
+        );
+    }
+
+    @Test
+    void shouldRestoreProjectsAndMemberships() throws IOException {
+        Path file = directory.resolve("tasks.properties");
+
+        User user = new User(5, "Анна");
+
+        Project project = new Project(9, "Изучение Java");
+        project.addMember(user.getId());
+
+        Task task = new Task(7, "Повторить коллекции", Priority.HIGH);
+        task.attachToProject(project.getId());
+        task.assignTo(user.getId());
+
+        TaskFileStorage storage = new TaskFileStorage(file);
+
+        storage.save(
+                List.of(task),
+                List.of(user),
+                List.of(project)
+        );
+
+        ApplicationData loaded =
+                new TaskFileStorage(file).load();
+
+        assertEquals(1, loaded.projects().size());
+        assertEquals(1, loaded.tasks().size());
+
+        assertAll(
+                () -> assertEquals(
+                        "Изучение Java",
+                        loaded.projects().get(0).getName()
+                ),
+                () -> assertEquals(
+                        Set.of(5L),
+                        loaded.projects().get(0).getMemberIds()
+                ),
+                () -> assertEquals(
+                        Long.valueOf(9),
+                        loaded.tasks().get(0).getProjectId()
+                ),
+                () -> assertEquals(
+                        Long.valueOf(5),
+                        loaded.tasks().get(0).getAssigneeId()
+                )
+        );
+    }
+
+    @Test
+    void shouldRejectAssigneeOutsideProject() {
+        Path file = directory.resolve("tasks.properties");
+
+        User user = new User(5, "Анна");
+        Project project = new Project(9, "Изучение Java");
+
+        Task task = new Task(7, "Повторить коллекции", Priority.HIGH);
+        task.attachToProject(project.getId());
+        task.assignTo(user.getId());
+
+        TaskFileStorage storage = new TaskFileStorage(file);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> storage.save(
+                        List.of(task),
+                        List.of(user),
+                        List.of(project)
                 )
         );
     }

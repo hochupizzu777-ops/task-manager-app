@@ -4,6 +4,7 @@ import ru.learning.taskmanager.model.Priority;
 import ru.learning.taskmanager.model.Task;
 import ru.learning.taskmanager.model.TaskStatus;
 import ru.learning.taskmanager.model.User;
+import ru.learning.taskmanager.model.Project;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -29,7 +30,10 @@ public class TaskFileStorage {
         ).toAbsolutePath();
     }
 
-    public void save(List<Task> tasks, List<User> users) throws IOException {
+    public void save(List<Task> tasks,
+                     List<User> users,
+                     List<Project> projects
+    ) throws IOException {
         Objects.requireNonNull(
                 tasks,
                 "Нельзя записать список задач равным null"
@@ -40,9 +44,16 @@ public class TaskFileStorage {
                 "Нельзя записать список пользователей равным null"
         );
 
-        validateAssignments(tasks, users);
+        Objects.requireNonNull(
+                projects,
+                "Список проектов не должен быть null"
+        );
+
+        validateAssignments(tasks, users, projects);
 
         Properties data = new Properties();
+
+        saveProjects(data, projects);
 
         data.setProperty(
                 "user.count",
@@ -97,6 +108,13 @@ public class TaskFileStorage {
                 data.setProperty(
                         prefix + "assigneeId",
                         Long.toString(task.getAssigneeId())
+                );
+            }
+
+            if (task.getProjectId() != null) {
+                data.setProperty(
+                        prefix + "projectId",
+                        Long.toString(task.getProjectId())
                 );
             }
 
@@ -163,8 +181,9 @@ public class TaskFileStorage {
     public ApplicationData load() throws IOException {
         if (Files.notExists(file)) {
             return new ApplicationData(
-                    new ArrayList<>(),
-                    new ArrayList<>()
+                    List.of(),
+                    List.of(),
+                    List.of()
             );
         }
 
@@ -242,14 +261,24 @@ public class TaskFileStorage {
                     task.assignTo(Long.parseLong(assigneeText));
                 }
 
+                String projectText = data.getProperty(
+                        prefix + "projectId"
+                );
+
+                if (projectText != null) {
+                    task.attachToProject(Long.parseLong(projectText));
+                }
+
                 tasks.add(task);
             }
 
             List<User> users = loadUsers(data);
+            List<Project> projects = loadProjects(data);
 
-            validateAssignments(tasks, users);
+            validateAssignments(tasks, users, projects);
 
-            return new ApplicationData(tasks, users);
+            return new ApplicationData(tasks, users, projects);
+
         }catch (IllegalArgumentException | DateTimeParseException exception){
             throw new IOException(
                     "некоректные данные задач" + exception.getMessage(),
@@ -260,12 +289,13 @@ public class TaskFileStorage {
 
     private void validateAssignments(
             List<Task> tasks,
-            List<User> users
-    ){
+            List<User> users,
+            List<Project> projects
+    ) {
         Set<Long> userIds = new HashSet<>();
 
-        for (User user : users){
-            if (!userIds.add(user.getId())){
+        for (User user : users) {
+            if (!userIds.add(user.getId())) {
                 throw new IllegalArgumentException(
                         "Повторяется идентификатор пользователя "
                                 + user.getId()
@@ -273,17 +303,60 @@ public class TaskFileStorage {
             }
         }
 
-        for (Task task : tasks){
+        Map<Long, Project> projectsById = new HashMap<>();
+
+        for (Project project : projects) {
+            if (projectsById.putIfAbsent(
+                    project.getId(),
+                    project
+            ) != null) {
+                throw new IllegalArgumentException(
+                        "Повторяется идентификатор проекта "
+                                + project.getId()
+                );
+            }
+
+            for (long memberId : project.getMemberIds()) {
+                if (!userIds.contains(memberId)) {
+                    throw new IllegalArgumentException(
+                            "В проекте " + project.getId()
+                                    + " указан отсутствующий участник "
+                                    + memberId
+                    );
+                }
+            }
+        }
+
+        for (Task task : tasks) {
             Long assigneeId = task.getAssigneeId();
 
-            if (assigneeId != null
-                    && !userIds.contains(assigneeId))
-            {
+            if (assigneeId != null && !userIds.contains(assigneeId)) {
                 throw new IllegalArgumentException(
                         "У задачи " + task.getId()
                                 + " указан отсутствующий исполнитель "
                                 + assigneeId
                 );
+            }
+
+            Long projectId = task.getProjectId();
+
+            if (projectId != null) {
+                Project project = projectsById.get(projectId);
+
+                if (project == null) {
+                    throw new IllegalArgumentException(
+                            "У задачи " + task.getId()
+                                    + " указан отсутствующий проект "
+                                    + projectId
+                    );
+                }
+
+                if (assigneeId != null && !project.hasMember(assigneeId)) {
+                    throw new IllegalArgumentException(
+                            "Исполнитель задачи " + task.getId()
+                                    + " не входит в проект " + projectId
+                    );
+                }
             }
         }
     }
@@ -317,5 +390,111 @@ public class TaskFileStorage {
         }
 
         return users;
+    }
+
+    private void saveProjects(
+            Properties data,
+            List<Project> projects
+    ) {
+        data.setProperty(
+                "project.count",
+                Integer.toString(projects.size())
+        );
+
+        for (int index = 0; index < projects.size(); index++) {
+            Project project = projects.get(index);
+            String prefix = "project." + index + ".";
+
+            data.setProperty(
+                    prefix + "id",
+                    Long.toString(project.getId())
+            );
+
+            data.setProperty(
+                    prefix + "name",
+                    project.getName()
+            );
+
+            List<Long> members = project.getMemberIds().stream()
+                    .sorted()
+                    .toList();
+
+            data.setProperty(
+                    prefix + "member.count",
+                    Integer.toString(members.size())
+            );
+
+            for (int memberIndex = 0;
+                 memberIndex < members.size();
+                 memberIndex++) {
+
+                data.setProperty(
+                        prefix + "member." + memberIndex,
+                        Long.toString(members.get(memberIndex))
+                );
+            }
+        }
+    }
+
+    private List<Project> loadProjects(Properties data) {
+        int count = Integer.parseInt(
+                data.getProperty("project.count", "0")
+        );
+
+        if (count < 0) {
+            throw new IllegalArgumentException(
+                    "Количество проектов не должно быть отрицательным"
+            );
+        }
+
+        List<Project> projects = new ArrayList<>();
+
+        for (int index = 0; index < count; index++) {
+            String prefix = "project." + index + ".";
+
+            long id = Long.parseLong(
+                    requiredProperty(data, prefix + "id")
+            );
+
+            String name = requiredProperty(
+                    data,
+                    prefix + "name"
+            );
+
+            Project project = new Project(id, name);
+
+            int memberCount = Integer.parseInt(
+                    requiredProperty(data, prefix + "member.count")
+            );
+
+            if (memberCount < 0) {
+                throw new IllegalArgumentException(
+                        "Количество участников не должно быть отрицательным"
+                );
+            }
+
+            for (int memberIndex = 0;
+                 memberIndex < memberCount;
+                 memberIndex++) {
+
+                long userId = Long.parseLong(
+                        requiredProperty(
+                                data,
+                                prefix + "member." + memberIndex
+                        )
+                );
+
+                if (!project.addMember(userId)) {
+                    throw new IllegalArgumentException(
+                            "Повторяется участник " + userId
+                                    + " в проекте " + id
+                    );
+                }
+            }
+
+            projects.add(project);
+        }
+
+        return projects;
     }
 }
