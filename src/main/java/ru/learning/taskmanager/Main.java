@@ -2,15 +2,21 @@ package ru.learning.taskmanager;
 
 import ru.learning.taskmanager.console.ConsoleInput;
 import ru.learning.taskmanager.console.ConsoleMenu;
+import ru.learning.taskmanager.model.Project;
 import ru.learning.taskmanager.model.Task;
 import ru.learning.taskmanager.model.User;
-import ru.learning.taskmanager.repository.*;
+import ru.learning.taskmanager.repository.InMemoryProjectRepository;
+import ru.learning.taskmanager.repository.InMemoryTaskRepository;
+import ru.learning.taskmanager.repository.InMemoryUserRepository;
+import ru.learning.taskmanager.repository.ProjectRepository;
+import ru.learning.taskmanager.repository.TaskRepository;
+import ru.learning.taskmanager.repository.UserRepository;
+import ru.learning.taskmanager.service.ProjectService;
+import ru.learning.taskmanager.service.TaskAssignmentService;
 import ru.learning.taskmanager.service.TaskService;
+import ru.learning.taskmanager.service.UserService;
 import ru.learning.taskmanager.storage.ApplicationData;
 import ru.learning.taskmanager.storage.TaskFileStorage;
-import ru.learning.taskmanager.service.UserService;
-import ru.learning.taskmanager.service.TaskAssignmentService;
-import ru.learning.taskmanager.model.Project;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -22,8 +28,6 @@ public class Main {
         TaskFileStorage storage = new TaskFileStorage(
                 Path.of("data", "tasks.properties")
         );
-        ProjectRepository projectRepository =
-                new InMemoryProjectRepository();
 
         TaskRepository taskRepository =
                 new InMemoryTaskRepository();
@@ -31,32 +35,73 @@ public class Main {
         UserRepository userRepository =
                 new InMemoryUserRepository();
 
-        TaskService service = new TaskService(taskRepository);
+        ProjectRepository projectRepository =
+                new InMemoryProjectRepository();
 
-        UserService userService = new UserService(
-                userRepository,
-                taskRepository,
-                projectRepository
-        );
+        try {
+            ApplicationData data = storage.load();
 
-        TaskAssignmentService assignmentService =
-                new TaskAssignmentService(
-                        taskRepository,
-                        userRepository,
-                        projectRepository
-                );
+            for (User user : data.users()) {
+                userRepository.save(user);
+            }
 
-        try (Scanner scanner = new Scanner(System.in)) {
-            ConsoleInput input = new ConsoleInput(scanner);
+            for (Project project : data.projects()) {
+                projectRepository.save(project);
+            }
 
-            ConsoleMenu menu = new ConsoleMenu(
-                    service,
-                    input,
-                    userService,
-                    assignmentService
+            for (Task task : data.tasks()) {
+                taskRepository.save(task);
+            }
+
+            TaskService taskService = new TaskService(
+                    taskRepository
             );
 
-            menu.run();
+            UserService userService = new UserService(
+                    userRepository,
+                    taskRepository,
+                    projectRepository
+            );
+
+            TaskAssignmentService assignmentService =
+                    new TaskAssignmentService(
+                            taskRepository,
+                            userRepository,
+                            projectRepository
+                    );
+
+            ProjectService projectService = new ProjectService(
+                    projectRepository,
+                    userRepository,
+                    taskRepository
+            );
+
+            try (Scanner scanner = new Scanner(System.in)) {
+                ConsoleInput input = new ConsoleInput(scanner);
+
+                ConsoleMenu menu = new ConsoleMenu(
+                        taskService,
+                        input,
+                        userService,
+                        assignmentService,
+                        projectService
+                );
+
+                menu.run();
+            }
+
+            storage.save(
+                    taskRepository.findAll(),
+                    userRepository.findAll(),
+                    projectRepository.findAll()
+            );
+
+            System.out.println("Данные сохранены.");
+        } catch (IOException exception) {
+            System.out.println(
+                    "Ошибка работы с файлом: "
+                            + exception.getMessage()
+            );
         }
     }
 }
