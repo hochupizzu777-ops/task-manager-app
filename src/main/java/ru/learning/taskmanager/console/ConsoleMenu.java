@@ -10,6 +10,9 @@ import ru.learning.taskmanager.exception.UserNotFoundException;
 import ru.learning.taskmanager.model.User;
 import ru.learning.taskmanager.service.UserService;
 import ru.learning.taskmanager.service.TaskAssignmentService;
+import ru.learning.taskmanager.model.Project;
+import ru.learning.taskmanager.service.ProjectService;
+import ru.learning.taskmanager.exception.ProjectNotFoundException;
 
 import java.util.Comparator;
 
@@ -22,11 +25,14 @@ public class ConsoleMenu {
     private final ConsoleInput input;
     private final UserService userService;
     private final TaskAssignmentService assignmentService;
+    private final ProjectService projectService;
+    private final ProjectConsoleMenu projectMenu;
 
     public ConsoleMenu(TaskService service,
                        ConsoleInput input,
                        UserService userService,
-                       TaskAssignmentService assignmentService
+                       TaskAssignmentService assignmentService,
+                       ProjectService projectService
     ){
         this.service = Objects.requireNonNull(
                 service,
@@ -43,6 +49,15 @@ public class ConsoleMenu {
         this.assignmentService = Objects.requireNonNull(
                 assignmentService,
                 "Сервис назначений не должен быть null"
+        );
+        this.projectService = Objects.requireNonNull(
+                projectService,
+                "Сервис проектов не должен быть null"
+        );
+
+        this.projectMenu = new ProjectConsoleMenu(
+                this.projectService,
+                this.input
         );
     }
 
@@ -66,9 +81,10 @@ public class ConsoleMenu {
             System.out.println("14. Назначить исполнителя");
             System.out.println("15. Снять исполнителя");
             System.out.println("16. Показать задачи пользователя");
+            System.out.println("17. Проекты");
             System.out.println("0. Выйти");
 
-            int choice = input.readInt("Ваш выбор", 0, 16);
+            int choice = input.readInt("Ваш выбор", 0, 17);
 
             try{
                 switch (choice){
@@ -88,15 +104,19 @@ public class ConsoleMenu {
                     case 14 -> assignTask();
                     case 15 -> unassignTask();
                     case 16 -> showUserTasks();
+                    case 17 -> projectMenu.run();
                     case 0 -> {
                         System.out.println("Программа завершена");
                         return;
                     }
                 }
-            }catch (TaskNotFoundException
+            } catch (
+                    TaskNotFoundException
                     | UserNotFoundException
-                    | IllegalStateException
-                    | IllegalArgumentException exception){
+                    | ProjectNotFoundException
+                    | IllegalArgumentException
+                    | IllegalStateException exception
+            ) {
                 System.out.println("Ошибка: " + exception.getMessage());
             }
         }
@@ -225,6 +245,7 @@ public class ConsoleMenu {
                         + " | Приоритет: " + priority
                         + " | Срок: " + dueDate
                         + " | Исполнитель: " + getAssigneeText(task)
+                        + " | Проект: " + getProjectText(task)
         );
     }
 
@@ -412,5 +433,17 @@ public class ConsoleMenu {
         User user = userService.getUser(assigneeId);
 
         return user.getName() + " (№" + user.getId() + ")";
+    }
+
+    private String getProjectText(Task task) {
+        Long projectId = task.getProjectId();
+
+        if (projectId == null) {
+            return "без проекта";
+        }
+
+        Project project = projectService.getProject(projectId);
+
+        return project.getName() + " (№" + project.getId() + ")";
     }
 }

@@ -11,6 +11,7 @@ public class Task {
     private Priority priority;
     private LocalDate dueDate;
     private Long assigneeId;
+    private Long projectId;
 
     public Task(
             long id,
@@ -113,6 +114,23 @@ public class Task {
 
     public void unassign(){
         this.assigneeId = null;
+    }
+
+    public Long getProjectId(){
+        return projectId;
+    }
+
+    public void attachToProject(long projectId){
+        if (projectId <= 0){
+            throw new IllegalArgumentException(
+                    "Идентификатор проекта должен быть положительным"
+            );
+        }
+
+        this.projectId = projectId;
+    }
+    public void detachFromProject(){
+        this.projectId = null;
     }
 
     @Override

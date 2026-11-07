@@ -3,10 +3,7 @@ package ru.learning.taskmanager;
 import ru.learning.taskmanager.model.Priority;
 import ru.learning.taskmanager.model.Task;
 import ru.learning.taskmanager.model.User;
-import ru.learning.taskmanager.repository.InMemoryTaskRepository;
-import ru.learning.taskmanager.repository.InMemoryUserRepository;
-import ru.learning.taskmanager.repository.TaskRepository;
-import ru.learning.taskmanager.repository.UserRepository;
+import ru.learning.taskmanager.repository.*;
 import ru.learning.taskmanager.service.TaskAssignmentService;
 import ru.learning.taskmanager.service.TaskService;
 import ru.learning.taskmanager.service.UserService;
@@ -20,16 +17,23 @@ public class UserDemo {
         UserRepository userRepository =
                 new InMemoryUserRepository();
 
+        ProjectRepository projectRepository =
+                new InMemoryProjectRepository();
+
         TaskService taskService =
                 new TaskService(taskRepository);
 
-        UserService userService =
-                new UserService(userRepository, taskRepository);
+        UserService userService = new UserService(
+                userRepository,
+                taskRepository,
+                projectRepository
+        );
 
         TaskAssignmentService assignmentService =
                 new TaskAssignmentService(
                         taskRepository,
-                        userRepository
+                        userRepository,
+                        projectRepository
                 );
 
         User user = userService.createUser("Максим");
